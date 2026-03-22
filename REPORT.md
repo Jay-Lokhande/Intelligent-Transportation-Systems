@@ -1,0 +1,76 @@
+# Privacy & Safety Aware Route Planner (Multi-Objective Pareto)
+
+**Course:** [course code]  
+**Team / author:** [names]  
+**Date:** [date]
+
+## 1. Introduction
+
+- **Problem:** Urban route choice often optimizes only travel time, ignoring **safety** (crime / accident risk) and **surveillance exposure** (e.g. CCTV density).
+- **Goal:** Propose routes that are **Pareto-optimal** under three objectives (minimize travel time, safety cost, surveillance cost) so users can choose trade-offs instead of a single “shortest” path.
+- **Scope:** Road network from OpenStreetMap (OSM); edge costs from defaults, CSV overrides, and optional point layers (e.g. CCTV → surveillance).
+
+## 2. Related work (brief)
+
+- Multi-objective shortest paths; label-setting / Pareto routing vs weighted-sum scalarization.
+- ITS and privacy-aware routing (cite 2–4 papers or course notes).
+
+## 3. Problem formulation
+
+- **Graph:** Directed multigraph \(G=(V,E)\); each edge has nonnegative costs \((t_e, s_e, c_e)\): time (seconds), safety, surveillance.
+- **Path cost:** Componentwise sum along edges: \((T,S,C) = \sum_e (t_e,s_e,c_e)\).
+- **Dominance (minimize all):** Path \(p\) dominates \(q\) iff \(T_p \le T_q, S_p \le S_q, C_p \le C_q\) with at least one strict inequality.
+- **Output:** **Pareto set** of nondominated simple paths from origin to destination (or an **approximation** when safeguards truncate search).
+
+## 4. Algorithm
+
+- **Implemented search:** Multi-objective **label-setting** with a priority queue; each node keeps a **nondominated** set of cost vectors; dominated labels are discarded.
+- **Baselines:** Single-objective **Dijkstra** on travel time only (`single_objective_shortest`) for comparison.
+- **Safeguards (optional):** `max_labels_per_node`, `max_heap_pops` — may yield **approximate** Pareto sets; document when used.
+- **Optional extension (if you add it):** Multi-objective A* with admissible heuristics — not required if above is clearly described.
+
+## 5. Data and cost model
+
+- **Road graph:** OSMnx `graph_from_bbox` → projected graph; travel time from OSMnx speeds / `travel_time`.
+- **Default safety / surveillance:** Highway-type × length proxies in code (`road_network.py`).
+- **Overrides:** CSV keyed by OSMnx `(u, v, key)` for `time`, `safety`, `surveillance`.
+- **Point layers:** `scripts/points_to_edge_csv.py` counts points within a buffer per edge → surveillance column (tune `--scale`).
+
+## 6. Implementation
+
+- **Stack:** Python 3.10+, OSMnx, GeoPandas (point pipeline), CLI `its-route`.
+- **Outputs:** Console; **GeoJSON** for map viewer (`viewer/index.html`).
+- **Reproducibility:** Pin bbox, seeds for synthetic data, `pytest`, README commands.
+
+## 7. Experiments (suggested)
+
+| Experiment | What to report |
+|------------|----------------|
+| Toy graph | Two Pareto routes; dominance check. |
+| Real bbox | Number of Pareto routes; time vs baseline min-time path; qualitative map. |
+| CSV / CCTV overlay | How surveillance costs change route set vs defaults. |
+| Truncation | Effect of `--max-labels-per-node` / `--max-heap-pops` on runtime and solution quality. |
+
+Include **1–2 figures** (map screenshots or cost scatter: \(T\) vs \(S\) or \(C\)).
+
+## 8. Ethics and limitations
+
+- **Not tracking individuals** — modeling environmental exposure and risk on road segments.
+- **Data bias:** Crime and CCTV inventories are incomplete; proxies are not ground truth.
+- **Fairness:** High “safety” cost on certain areas must be discussed carefully (avoid stigmatizing neighborhoods without context).
+
+## 9. Conclusion
+
+- What you achieved; what would be needed for deployment (live traffic, validated risk models, user studies).
+
+## Appendix: Commands reference
+
+```bash
+.venv/bin/its-route toy
+.venv/bin/its-route osm --west W --south S --east E --north N \
+  --orig-lat … --orig-lon … --dest-lat … --dest-lon … \
+  --show-baseline --geojson routes.geojson
+.venv/bin/python scripts/points_to_edge_csv.py --west W … --points cctv.csv --out edge_surveillance.csv
+```
+
+Replace placeholders with real floats; same bbox for graph build and edge CSV.
