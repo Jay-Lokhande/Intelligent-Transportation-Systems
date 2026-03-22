@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "its-route-planner"
+version = "0.1.0"
+description = "Privacy & safety aware multi-objective route planning (Pareto-optimal paths)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "osmnx>=1.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+its-route = "its_route_planner.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/its_route_planner"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
