@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ITS Pareto routes</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+    #toolbar {
+      display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center;
+      padding: 0.5rem 0.75rem; background: #1a1d23; color: #e8eaef;
+      border-bottom: 1px solid #2d3340;
+    }
+    #toolbar label { cursor: pointer; font-size: 0.9rem; }
+    #toolbar input[type="file"] { max-width: 14rem; font-size: 0.8rem; }
+    #status { font-size: 0.85rem; opacity: 0.85; }
+    #map { height: calc(100% - 48px); width: 100%; }
+    .leaflet-popup-content { font-size: 0.85rem; min-width: 10rem; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <label>GeoJSON <input id="file" type="file" accept=".geojson,.json,application/geo+json" /></label>
+    <span id="status">Load the file produced by <code>its-route osm … --geojson routes.geojson</code></span>
+  </div>
+  <div id="map" role="application" aria-label="Map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const palette = ["#2563eb", "#16a34a", "#dc2626", "#ca8a04", "#9333ea", "#0891b2", "#db2777"];
+    const map = L.map("map", { zoomControl: true }).setView([40.75, -74.0], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap",
+    }).addTo(map);
+
+    const layers = L.layerGroup().addTo(map);
+    const status = document.getElementById("status");
+
+    function paintFeature(feature, i) {
+      const c = palette[i % palette.length];
+      return {
+        color: c,
+        weight: 5,
+        opacity: 0.92,
+        lineJoin: "round",
+        lineCap: "round",
+      };
+    }
+
+    function onEach(feature, layer) {
+      const p = feature.properties || {};
+      const lines = [
+        "<strong>Route " + (p.index ?? "?") + "</strong>",
+        "time_s: " + (p.time_s != null ? Number(p.time_s).toFixed(1) : "—"),
+        "safety: " + (p.safety != null ? Number(p.safety).toFixed(3) : "—"),
+        "surveillance: " + (p.surveillance != null ? Number(p.surveillance).toFixed(3) : "—"),
+        "nodes: " + (p.node_count ?? "—"),
+      ];
+      layer.bindPopup(lines.join("<br/>"));
+    }
+
+    function loadGeoJSON(obj) {
+      layers.clearLayers();
+      const gj = L.geoJSON(obj, {
+        style: (feat) => paintFeature(feat, feat.properties && feat.properties.index != null ? feat.properties.index : 0),
+        onEachFeature,
+      });
+      layers.addLayer(gj);
+      const b = gj.getBounds();
+      if (b.isValid()) map.fitBounds(b.pad(0.12));
+      const n = (obj.features && obj.features.length) || 0;
+      status.textContent = "Showing " + n + " route(s).";
+    }
+
+    document.getElementById("file").addEventListener("change", (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          loadGeoJSON(JSON.parse(reader.result));
+        } catch (e) {
+          status.textContent = "Invalid JSON: " + e.message;
+        }
+      };
+      reader.readAsText(f, "utf-8");
+    });
+
+    // If opened via http(s) (e.g. python -m http.server), try routes.geojson in the same folder.
+    if (location.protocol === "http:" || location.protocol === "https:") {
+      fetch("routes.geojson", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && data.type === "FeatureCollection") {
+            loadGeoJSON(data);
+            status.textContent += " (loaded routes.geojson from server)";
+          }
+        })
+        .catch(() => {});
+    }
+  </script>
+</body>
+</html>
