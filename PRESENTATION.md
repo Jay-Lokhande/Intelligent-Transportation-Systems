@@ -57,26 +57,60 @@ Goal:
 
 ## Slide 6 — Method (algorithm overview)
 
-We implement **multi-objective label-setting (Pareto) search** — as in the report:
-- Each node stores a set of **nondominated labels** (cost vectors)
-- A min-heap orders exploration by **sum** of the three costs (scalar key)
-- Dominated labels are **pruned**; labels at the destination yield **Pareto-optimal** routes
+We implement **multi-objective label-setting (Pareto) search** (not weighted-sum scalarization):
+- Maintain **several** partial path costs per node — every **nondominated** 3-vector seen so far at that node
+- **Relax** edges like Dijkstra, but **add** a new label at the head only if it is **not dominated** by labels already stored there
+- A **min-heap** picks **which label to expand next**; heap priority is **not** a new objective (**scalar key** on Slide 7)
 
-**Note:** This is **not** MO-A\* (no separate admissible heuristic **h**); that remains optional future work.
-
----
-
-## Slide 7 — Baseline & safeguards
-
-- Baseline: **single-objective Dijkstra** minimizing **time only**
-  - Lets us compare “fastest route” vs Pareto set trade-offs
-- Safeguards for large graphs (may approximate Pareto):
-  - `--max-labels-per-node N`
-  - `--max-heap-pops N`
+**Note:** This is **not** MO-A\* — there is **no** admissible heuristic **h(v)** toward the goal; only **g**-style accumulated costs appear in the queue.
 
 ---
 
-## Slide 8 — Data & cost model
+## Slide 7 — Data structures + dominance
+
+| Structure | Meaning |
+|-----------|---------|
+| **labels[v]** | **Pairwise nondominated** partial vectors **c** = (T, S, C) for walks **s → v** |
+| **Heap** | **(scalar_key, v, c)** — schedule expansion of accepted **(v, c)** |
+| **back[(v, c)]** | **(u, c_u, w)** with **c = c_u + w**; **w** = exact edge vector (parallel edges) |
+
+**Init:** **labels[s] = {(0,0,0)}**; **key(c) = T + S + C** (scheduling only — skip **stale** pops).
+
+**Insert `c_new` at v:** reject if duplicate or dominated; else drop labels dominated by **c_new**; append. → **labels[v]** stays nondominated-minimal.
+
+---
+
+## Slide 8 — Main loop (compact)
+
+- **Pop** **(u, c)**; if **c ∉ labels[u]** → **stale**, skip. Else relax each out-edge **w**: **c_new = c + w**; **`insert_nondominated`**; optional **lexicographic trim** to **N** labels (approximate).
+- If **c_new** survived: **back[(v,c_new)] = (u,c,w)**, **push** **(v, c_new)**.
+- **Stop** early if **`max_heap_pops`** hit. **Output:** reconstruct from each label at **t** → one route per nondominated **c** (exact mode).
+
+---
+
+## Slide 9 — Parallel edges & path reconstruction
+
+- OSM yields a **multigraph**: several edges **u → v** with **different** **(t, s, c)**.
+- **back[(v, c_new)]** stores the **full 3-vector w** of the chosen edge, not just endpoints — so reconstruction knows **which** parallel edge was taken.
+- Return value: **(total_vector, node_path, edge_vectors)** with **sum(edge_vectors) = total_vector**.
+
+**Stale heap entries:** after a pop, if **c** is no longer in **labels[u]**, **skip** — that partial cost was superseded; extending it would not improve the Pareto set.
+
+---
+
+## Slide 10 — Baseline, safeguards, complexity
+
+**Baseline — single-objective Dijkstra:** minimize **one** component of **w** (e.g. time); reconstruct path; report the **true** **(T,S,C)** along that path for comparison.
+
+**Safeguards** (optional; may break Pareto guarantees):
+- **`--max-labels-per-node N`:** after insert, keep only **N** labels at **v** (lexicographic sort on **(T,S,C)**) — can drop nondominated solutions
+- **`--max-heap-pops N`:** stop after **N** pops — search may end before all useful labels reach **t**
+
+**Complexity (informal):** if **L** = max nondominated labels per node, roughly **O(|E| · L²)** time for dominance checks per relaxation, **O(|V| · L)** space — motivates safeguards on large city extracts.
+
+---
+
+## Slide 11 — Data & cost model
 
 What we use now:
 - **Road graph:** OpenStreetMap via OSMnx (downloaded per bbox)
@@ -89,7 +123,7 @@ Optional “real layer” integration:
 
 ---
 
-## Slide 9 — Privacy/surveillance layer (point pipeline)
+## Slide 12 — Privacy/surveillance layer (point pipeline)
 
 If CCTV locations are available as points (lat/lon):
 - Count points within a buffer (meters) near each road edge
@@ -100,7 +134,7 @@ Tooling:
 
 ---
 
-## Slide 10 — System demo plan (live)
+## Slide 13 — System demo plan (live)
 
 1. **Toy:** `its-route toy` — two Pareto paths on a 4-node graph (sanity check).
 2. **Real network:** OSM bbox (e.g. **Bengaluru** Indiranagar→Koramangala corridor or a small NYC bbox).
@@ -110,7 +144,7 @@ Tooling:
 
 ---
 
-## Slide 11 — Demo commands (copy/paste)
+## Slide 14 — Demo commands (copy/paste)
 
 **Reproducible Bengaluru run** (explicit OSM nodes — must lie inside bbox):
 
@@ -141,7 +175,7 @@ Open `http://127.0.0.1:8765/viewer/` and load your `.geojson` (or copy it to `vi
 
 ---
 
-## Slide 12 — Results (what to show)
+## Slide 15 — Results (what to show)
 
 Suggested visuals:
 - **Map:** screenshot from `viewer/index.html` loading `results/bengaluru_routes_12.geojson` (or your run’s file)
@@ -157,7 +191,7 @@ Update slide numbers if your rerun differs; cite **run date** and “OSM snapsho
 
 ---
 
-## Slide 13 — Limitations & ethics
+## Slide 16 — Limitations & ethics
 
 - **Data bias & incompleteness:** crime/CCTV datasets can be partial, outdated, or biased.
 - **Proxy costs:** default safety/surveillance are proxies; not ground truth.
@@ -165,7 +199,7 @@ Update slide numbers if your rerun differs; cite **run date** and “OSM snapsho
 
 ---
 
-## Slide 14 — Future work
+## Slide 17 — Future work
 
 - **Multi-Objective A\*** with admissible vector heuristics (extension beyond current label-setting)
 - More realistic safety models:
@@ -177,7 +211,7 @@ Update slide numbers if your rerun differs; cite **run date** and “OSM snapsho
 
 ---
 
-## Slide 15 — Q&A
+## Slide 18 — Q&A
 
 Questions?
 
