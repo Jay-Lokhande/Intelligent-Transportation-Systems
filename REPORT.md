@@ -53,6 +53,36 @@
 
 Include **1–2 figures** (map screenshots or cost scatter: \(T\) vs \(S\) or \(C\)).
 
+### 7.1 Reproducibility — Bengaluru (explicit OSM nodes)
+
+**Scenario:** bbox \(77.61^\circ\mathrm{E}\)–\(77.67^\circ\mathrm{E}\), \(12.93^\circ\mathrm{N}\)–\(12.98^\circ\mathrm{N}\); origin OSM node **448306395**, destination **309592695** (Indiranagar → Koramangala corridor, per report).
+
+**One command (prints baseline + first 12 Pareto routes + total count):**
+
+```bash
+.venv/bin/its-route osm --west 77.61 --south 12.93 --east 77.67 --north 12.98 \
+  --orig-node 448306395 --dest-node 309592695 \
+  --show-baseline --limit 12 | tee results/bengaluru_reproduction.txt
+```
+
+Or: `bash scripts/reproduce_bengaluru.sh`
+
+**Recorded run (this repo, 2026-04-12):** see `results/bengaluru_reproduction.txt`. Summary:
+
+- `pareto_total_routes=75` (OSM edits can shift counts vs an older “76 routes” table — always re-run and paste the printed `pareto_total_routes=…`).
+- Baseline (min time): **530.7 s**, safety **84.817**, surveillance **127.225**, **34** hops.
+- The printed top-12 Pareto rows match the **shape** of the report’s table (same trade-off story: small time increases can lower surveillance).
+
+**Map export (first 12 routes):**
+
+```bash
+.venv/bin/its-route osm --west 77.61 --south 12.93 --east 77.67 --north 12.98 \
+  --orig-node 448306395 --dest-node 309592695 \
+  --show-baseline --limit 12 --geojson results/bengaluru_routes_12.geojson
+```
+
+**All Pareto routes (can be large):** add `--geojson-all results/bengaluru_routes_all.geojson`.
+
 ## 8. Ethics and limitations
 
 - **Not tracking individuals** — modeling environmental exposure and risk on road segments.
@@ -67,9 +97,13 @@ Include **1–2 figures** (map screenshots or cost scatter: \(T\) vs \(S\) or \(
 
 ```bash
 .venv/bin/its-route toy
+# Snap lat/lon to nearest nodes:
 .venv/bin/its-route osm --west W --south S --east E --north N \
   --orig-lat … --orig-lon … --dest-lat … --dest-lon … \
   --show-baseline --geojson routes.geojson
+# Or pin exact OSM endpoints (recommended for reproducible report numbers):
+.venv/bin/its-route osm --west W --south S --east E --north N \
+  --orig-node U --dest-node V --show-baseline --geojson routes.geojson
 .venv/bin/python scripts/points_to_edge_csv.py --west W … --points cctv.csv --out edge_surveillance.csv
 ```
 
