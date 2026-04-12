@@ -62,7 +62,7 @@ We implement **multi-objective label-setting (Pareto) search** — as in the rep
 - A min-heap orders exploration by **sum** of the three costs (scalar key)
 - Dominated labels are **pruned**; labels at the destination yield **Pareto-optimal** routes
 
-**Note:** This is **not** MO-A\* (no separate admissible heuristic \(h\)); that remains optional future work.
+**Note:** This is **not** MO-A\* (no separate admissible heuristic **h**); that remains optional future work.
 
 ---
 
