@@ -42,4 +42,4 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 `scale` maps “number of points near this road” into the surveillance cost column; tune it relative to your default highway-based costs. Crime / safety from polygons or another CSV can be added the same way (join externally, then merge into one `--edge-costs` file or extend the script).
 
-**Course write-up:** see `REPORT.md` for a section outline (formulation, algorithm, experiments, ethics).
+**Course write-up:** see `REPORT.md` for a section outline (formulation, algorithm, experiments, ethics). **Algorithm details:** see `ALGORITHM.md` (dominance, label-setting loop, reconstruction, Dijkstra baseline, safeguards, complexity, vs A\*).

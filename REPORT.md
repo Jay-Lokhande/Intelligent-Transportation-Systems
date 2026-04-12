@@ -24,6 +24,7 @@
 
 ## 4. Algorithm
 
+- **Full write-up:** see **`ALGORITHM.md`** (pseudocode-level detail, data structures, multigraph back-pointers, safeguards, complexity, and relation to A\*).
 - **Implemented search:** Multi-objective **label-setting** with a priority queue; each node keeps a **nondominated** set of cost vectors; dominated labels are discarded.
 - **Baselines:** Single-objective **Dijkstra** on travel time only (`single_objective_shortest`) for comparison.
 - **Safeguards (optional):** `max_labels_per_node`, `max_heap_pops` — may yield **approximate** Pareto sets; document when used.
