@@ -29,8 +29,8 @@ Multi-Objective Route Planning for ITS (Pareto-optimal paths)
 ## Slide 3 — Problem statement
 
 Given:
-- Road network as a **directed multigraph** \(G=(V,E)\) (OSM can have parallel edges)
-- Edge costs \((t_e, s_e, c_e)\): travel time, safety cost, surveillance cost
+- Road network as a **directed multigraph** **G = (V, E)** (OSM can have parallel edges)
+- Edge costs **(t_e, s_e, c_e)**: travel time, safety cost, surveillance cost
 
 Goal:
 - Find **Pareto-optimal** routes from origin to destination:
@@ -48,9 +48,9 @@ Goal:
 
 ## Slide 5 — Core definitions
 
-- Path cost vector: \((T,S,C)=\sum_{e\in path}(t_e,s_e,c_e)\)
+- Path cost vector: **(T, S, C) = sum over edges e in path of (t_e, s_e, c_e)**
 - Dominance (minimization):
-  - \(a \prec b\) iff \(a \le b\) componentwise and \(a < b\) in at least one component
+  - **a** strictly dominates **b** iff **a ≤ b** componentwise and **a < b** in at least one component
 - Pareto set: all **non-dominated** route cost vectors.
 
 ---

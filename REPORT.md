@@ -17,9 +17,9 @@
 
 ## 3. Problem formulation
 
-- **Graph:** Directed multigraph \(G=(V,E)\); each edge has nonnegative costs \((t_e, s_e, c_e)\): time (seconds), safety, surveillance.
-- **Path cost:** Componentwise sum along edges: \((T,S,C) = \sum_e (t_e,s_e,c_e)\).
-- **Dominance (minimize all):** Path \(p\) dominates \(q\) iff \(T_p \le T_q, S_p \le S_q, C_p \le C_q\) with at least one strict inequality.
+- **Graph:** Directed multigraph **G = (V, E)**; each edge has nonnegative costs **(t_e, s_e, c_e)**: time (seconds), safety, surveillance.
+- **Path cost:** Componentwise sum along edges: **(T, S, C) = Σ_e (t_e, s_e, c_e)**.
+- **Dominance (minimize all):** Path **p** dominates **q** iff **T_p ≤ T_q**, **S_p ≤ S_q**, **C_p ≤ C_q** with at least one strict inequality.
 - **Output:** **Pareto set** of nondominated simple paths from origin to destination (or an **approximation** when safeguards truncate search).
 
 ## 4. Algorithm
@@ -52,11 +52,11 @@
 | CSV / CCTV overlay | How surveillance costs change route set vs defaults. |
 | Truncation | Effect of `--max-labels-per-node` / `--max-heap-pops` on runtime and solution quality. |
 
-Include **1–2 figures** (map screenshots or cost scatter: \(T\) vs \(S\) or \(C\)).
+Include **1–2 figures** (map screenshots or cost scatter: **T** vs **S** or **C**).
 
 ### 7.1 Reproducibility — Bengaluru (explicit OSM nodes)
 
-**Scenario:** bbox \(77.61^\circ\mathrm{E}\)–\(77.67^\circ\mathrm{E}\), \(12.93^\circ\mathrm{N}\)–\(12.98^\circ\mathrm{N}\); origin OSM node **448306395**, destination **309592695** (Indiranagar → Koramangala corridor, per report).
+**Scenario:** bbox **77.61°E–77.67°E**, **12.93°N–12.98°N**; origin OSM node **448306395**, destination **309592695** (Indiranagar → Koramangala corridor, per report).
 
 **One command (prints baseline + first 12 Pareto routes + total count):**
 
