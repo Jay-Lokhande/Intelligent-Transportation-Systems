@@ -39,9 +39,32 @@ def _cmd_osm(args: argparse.Namespace) -> None:
     if args.edge_keys_out:
         n = write_edge_key_template(net.projected, args.edge_keys_out)
         print(f"wrote {n} edge rows to {args.edge_keys_out}")
-    o = net.nearest_node(args.orig_lat, args.orig_lon)
-    d = net.nearest_node(args.dest_lat, args.dest_lon)
-    print(f"origin node={o}  destination node={d}")
+
+    node_ids = args.orig_node is not None and args.dest_node is not None
+    latlon = all(
+        x is not None
+        for x in (args.orig_lat, args.orig_lon, args.dest_lat, args.dest_lon)
+    )
+    if node_ids and latlon:
+        raise SystemExit("use either --orig-node/--dest-node or all four lat/lon flags, not both")
+    if not node_ids and not latlon:
+        raise SystemExit(
+            "provide --orig-node and --dest-node, or --orig-lat/--orig-lon/--dest-lat/--dest-lon"
+        )
+
+    routing_nodes = set(net.routing.nodes())
+    if node_ids:
+        o, d = int(args.orig_node), int(args.dest_node)
+        if o not in routing_nodes or d not in routing_nodes:
+            raise SystemExit(
+                f"origin/destination node not in bbox graph (origin in graph: {o in routing_nodes}, "
+                f"dest in graph: {d in routing_nodes})"
+            )
+        print(f"origin node={o}  destination node={d}  (explicit OSM node ids)")
+    else:
+        o = net.nearest_node(float(args.orig_lat), float(args.orig_lon))
+        d = net.nearest_node(float(args.dest_lat), float(args.dest_lon))
+        print(f"origin node={o}  destination node={d}  (snapped from lat/lon)")
     if args.show_baseline:
         b = single_objective_shortest(net.routing, o, d, 0)
         if b is None:
@@ -66,6 +89,7 @@ def _cmd_osm(args: argparse.Namespace) -> None:
     if not routes:
         print("no path (disconnected subgraph or same node?)")
         return
+    print(f"pareto_total_routes={len(routes)}")
     show = routes[: args.limit]
     print(f"Pareto routes (showing {len(show)} of {len(routes)}):")
     for cost, path, _ev in sorted(show, key=lambda x: x[0][0]):
@@ -77,6 +101,10 @@ def _cmd_osm(args: argparse.Namespace) -> None:
         fc = routes_to_geojson(net.projected, show)
         write_geojson(args.geojson, fc)
         print(f"wrote GeoJSON: {args.geojson} ({len(fc['features'])} features)")
+    if args.geojson_all:
+        fc_all = routes_to_geojson(net.projected, routes)
+        write_geojson(args.geojson_all, fc_all)
+        print(f"wrote GeoJSON (all Pareto): {args.geojson_all} ({len(fc_all['features'])} features)")
 
 
 def main() -> None:
@@ -93,10 +121,22 @@ def main() -> None:
     o.add_argument("--south", type=float, required=True)
     o.add_argument("--east", type=float, required=True)
     o.add_argument("--north", type=float, required=True)
-    o.add_argument("--orig-lat", type=float, required=True)
-    o.add_argument("--orig-lon", type=float, required=True)
-    o.add_argument("--dest-lat", type=float, required=True)
-    o.add_argument("--dest-lon", type=float, required=True)
+    o.add_argument(
+        "--orig-node",
+        type=int,
+        default=None,
+        help="origin graph node id (OSM); use with --dest-node instead of lat/lon",
+    )
+    o.add_argument(
+        "--dest-node",
+        type=int,
+        default=None,
+        help="destination graph node id (OSM); use with --orig-node instead of lat/lon",
+    )
+    o.add_argument("--orig-lat", type=float, default=None)
+    o.add_argument("--orig-lon", type=float, default=None)
+    o.add_argument("--dest-lat", type=float, default=None)
+    o.add_argument("--dest-lon", type=float, default=None)
     o.add_argument(
         "--network-type",
         default="drive",
@@ -126,7 +166,12 @@ def main() -> None:
     o.add_argument(
         "--geojson",
         metavar="PATH",
-        help="write Pareto routes as GeoJSON (WGS84 LineStrings)",
+        help="write first --limit Pareto routes as GeoJSON (WGS84 LineStrings)",
+    )
+    o.add_argument(
+        "--geojson-all",
+        metavar="PATH",
+        help="write all Pareto routes as GeoJSON (can be large)",
     )
     o.add_argument(
         "--show-baseline",
