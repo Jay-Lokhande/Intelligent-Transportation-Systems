@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ITS Pareto — visual demo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;1,9..40,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #161a21;
+      --border: #2a3140;
+      --text: #e8eaef;
+      --muted: #8b93a7;
+      --accent: #3b82f6;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem;
+    }
+    header h1 {
+      font-size: 1rem; font-weight: 600; margin: 0;
+      letter-spacing: -0.02em;
+    }
+    header .hint { font-size: 0.8rem; color: var(--muted); max-width: 42rem; line-height: 1.4; }
+    header label { font-size: 0.85rem; cursor: pointer; }
+    header input[type="file"] { max-width: 14rem; font-size: 0.75rem; }
+    #status { font-size: 0.8rem; color: var(--muted); font-family: "IBM Plex Mono", monospace; }
+
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr min(380px, 38vw);
+      grid-template-rows: minmax(220px, 28vh) 1fr;
+      gap: 0;
+      min-height: 0;
+    }
+    @media (max-width: 900px) {
+      .main { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 22vh) 45vh 1fr; }
+    }
+
+    #tradeoff-panel {
+      grid-column: 2;
+      grid-row: 1 / -1;
+      border-left: 1px solid var(--border);
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    @media (max-width: 900px) {
+      #tradeoff-panel {
+        grid-column: 1;
+        grid-row: 3;
+        border-left: none;
+        border-top: 1px solid var(--border);
+      }
+    }
+
+    #scatter-wrap {
+      flex: 0 0 auto;
+      padding: 0.75rem 1rem 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+    #scatter-wrap h2 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); margin: 0 0 0.5rem;
+      font-weight: 600;
+    }
+    #scatter-svg {
+      width: 100%;
+      height: min(220px, 28vh);
+      display: block;
+    }
+    .axis-label { fill: var(--muted); font-size: 11px; font-family: "IBM Plex Mono", monospace; }
+
+    #route-list-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 0.5rem 0;
+    }
+    #route-list-wrap h2 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); margin: 0 1rem 0.5rem;
+      font-weight: 600;
+    }
+    table.routes {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+    table.routes th {
+      text-align: left; padding: 0.35rem 0.75rem; color: var(--muted);
+      font-weight: 500; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--panel);
+    }
+    table.routes td {
+      padding: 0.35rem 0.75rem;
+      border-bottom: 1px solid rgba(42, 49, 64, 0.6);
+      vertical-align: middle;
+    }
+    table.routes tr:hover td { background: rgba(59, 130, 246, 0.08); }
+    table.routes tr.active td { background: rgba(59, 130, 246, 0.15); }
+    table.routes input { cursor: pointer; }
+    .swatch {
+      display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+      margin-right: 0.35rem; vertical-align: middle;
+    }
+
+    #map {
+      grid-column: 1;
+      grid-row: 1 / -1;
+      min-height: 280px;
+      background: #1a1d24;
+    }
+    @media (max-width: 900px) {
+      #map { grid-row: 2; }
+    }
+
+    .leaflet-popup-content { font-size: 0.85rem; min-width: 10rem; font-family: "DM Sans", sans-serif; }
+
+    #highlights-wrap {
+      padding: 0.65rem 1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+    #highlights-wrap h2 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: var(--muted); margin: 0 0 0.35rem;
+      font-weight: 600;
+    }
+    .hi-note {
+      font-size: 0.72rem; color: var(--muted); line-height: 1.45;
+      margin: 0 0 0.55rem;
+    }
+    .hi-note code { font-family: "IBM Plex Mono", monospace; font-size: 0.68rem; }
+    .hi-list { list-style: none; margin: 0; padding: 0; font-size: 0.78rem; }
+    .hi-list li {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.75rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid rgba(42, 49, 64, 0.5);
+    }
+    .hi-list li:last-child { border-bottom: none; }
+    .hi-list .hi-label { color: var(--muted); min-width: 11rem; }
+    .hi-list .hi-val { font-family: "IBM Plex Mono", monospace; font-size: 0.76rem; }
+    .hi-list button {
+      margin-left: auto;
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      cursor: pointer;
+      background: #252a35;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      font-family: inherit;
+    }
+    .hi-list button:hover { background: #2d3545; border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ITS — Pareto route visual demo</h1>
+    <label>GeoJSON <input id="file" type="file" accept=".geojson,.json,application/geo+json" /></label>
+    <span class="hint">
+      Load output from <code style="font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem;">its-route osm … --geojson …</code>
+      or place <code>routes.geojson</code> here and open via <code>http://</code>. Map + table + scatter stay linked.
+    </span>
+    <span id="status"></span>
+  </header>
+
+  <div class="main">
+    <div id="map" role="application" aria-label="Map"></div>
+
+    <aside id="tradeoff-panel">
+      <div id="scatter-wrap">
+        <h2>Trade-off (Pareto cloud)</h2>
+        <svg id="scatter-svg" viewBox="0 0 360 200" preserveAspectRatio="xMidYMid meet" aria-label="Time vs surveillance scatter plot"></svg>
+      </div>
+      <div id="highlights-wrap">
+        <h2>Highlighted picks (among loaded routes)</h2>
+        <p class="hi-note">
+          Multi-objective routing has <strong>no single “best” path</strong> unless you fix a rule.
+          Below are <strong>extremes</strong> in this file (lower cost is better). The
+          <strong>fastest baseline</strong> from Dijkstra is printed in the terminal with <code>--show-baseline</code>
+          and may differ from these Pareto rows.
+        </p>
+        <ul id="highlights-list" class="hi-list"></ul>
+      </div>
+      <div id="route-list-wrap">
+        <h2>Routes</h2>
+        <div id="route-table-mount"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script>
+    const palette = ["#3b82f6", "#22c55e", "#ef4444", "#eab308", "#a855f7", "#0891b2", "#ec4899"];
+    const map = L.map("map", { zoomControl: true }).setView([12.955, 77.64], 12);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap",
+    }).addTo(map);
+
+    const routeGroup = L.featureGroup().addTo(map);
+    const statusEl = document.getElementById("status");
+    const scatterSvg = document.getElementById("scatter-svg");
+    const tableMount = document.getElementById("route-table-mount");
+    const highlightsList = document.getElementById("highlights-list");
+
+    /** @type {{ layer: L.Polyline, index: number, color: string, time: number, surv: number, feat: object }[]} */
+    let routeEntries = [];
+    let activeIndex = -1;
+
+    function escapeHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function focusRouteByIndex(i) {
+      setHighlight(i);
+      const entry = routeEntries.find((e) => e.index === i);
+      if (entry && typeof entry.layer.getBounds === "function" && entry.layer.getBounds().isValid()) {
+        map.fitBounds(entry.layer.getBounds(), { padding: [36, 36], maxZoom: 15 });
+      }
+    }
+
+    function setHighlight(idx) {
+      activeIndex = idx;
+      routeEntries.forEach((e) => {
+        const on = idx === e.index;
+        e.layer.setStyle({
+          color: e.color,
+          weight: on ? 7 : 4,
+          opacity: idx < 0 ? 0.9 : on ? 1 : 0.28,
+        });
+      });
+      document.querySelectorAll("table.routes tbody tr").forEach((tr) => {
+        tr.classList.toggle("active", tr.dataset.index === String(idx));
+      });
+      document.querySelectorAll("#scatter-svg circle[data-idx]").forEach((c) => {
+        const i = parseInt(c.getAttribute("data-idx"), 10);
+        c.setAttribute("r", i === idx ? 8 : 5);
+        c.setAttribute("opacity", idx < 0 ? 0.92 : i === idx ? 1 : 0.35);
+        c.setAttribute("stroke-width", i === idx ? 2 : 1);
+      });
+    }
+
+    function buildScatter(features) {
+      scatterSvg.innerHTML = "";
+      const pad = { l: 44, r: 12, t: 16, b: 36 };
+      const W = 360;
+      const H = 200;
+      const innerW = W - pad.l - pad.r;
+      const innerH = H - pad.t - pad.b;
+
+      const times = features.map((f) => Number(f.properties.time_s) || 0);
+      const survs = features.map((f) => Number(f.properties.surveillance) || 0);
+      let minT = Math.min(...times);
+      let maxT = Math.max(...times);
+      let minS = Math.min(...survs);
+      let maxS = Math.max(...survs);
+      if (minT === maxT) { minT -= 1; maxT += 1; }
+      if (minS === maxS) { minS -= 0.5; maxS += 0.5; }
+      const padT = (maxT - minT) * 0.06;
+      const padS = (maxS - minS) * 0.06;
+      minT -= padT; maxT += padT; minS -= padS; maxS += padS;
+
+      const xScale = (t) => pad.l + ((t - minT) / (maxT - minT)) * innerW;
+      const yScale = (s) => pad.t + innerH - ((s - minS) / (maxS - minS)) * innerH;
+
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const axis = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      axis.setAttribute("d", `M ${pad.l} ${pad.t} L ${pad.l} ${H - pad.b} L ${W - pad.r} ${H - pad.b}`);
+      axis.setAttribute("fill", "none");
+      axis.setAttribute("stroke", "#4a5568");
+      axis.setAttribute("stroke-width", "1");
+      g.appendChild(axis);
+
+      const lx = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lx.setAttribute("class", "axis-label");
+      lx.setAttribute("x", W / 2 - 40);
+      lx.setAttribute("y", H - 8);
+      lx.textContent = "time (s)";
+      g.appendChild(lx);
+
+      const ly = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      ly.setAttribute("class", "axis-label");
+      ly.setAttribute("x", -H / 2 + 20);
+      ly.setAttribute("y", 14);
+      ly.setAttribute("transform", "rotate(-90)");
+      ly.textContent = "surveillance";
+      g.appendChild(ly);
+
+      features.forEach((feat, fi) => {
+        const p = feat.properties || {};
+        const i = p.index != null ? p.index : fi;
+        const t = Number(p.time_s) || 0;
+        const s = Number(p.surveillance) || 0;
+        const col = palette[i % palette.length];
+        const cx = xScale(t);
+        const cy = yScale(s);
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", cx);
+        circle.setAttribute("cy", cy);
+        circle.setAttribute("r", 5);
+        circle.setAttribute("fill", col);
+        circle.setAttribute("stroke", "#fff");
+        circle.setAttribute("stroke-width", 1);
+        circle.setAttribute("data-idx", i);
+        circle.style.cursor = "pointer";
+        circle.addEventListener("click", () => focusRouteByIndex(i));
+        g.appendChild(circle);
+      });
+
+      scatterSvg.appendChild(g);
+    }
+
+    function buildTable(features) {
+      const rows = features
+        .map((feat, fi) => ({ feat, fi }))
+        .sort((a, b) => {
+          const ia = a.feat.properties && a.feat.properties.index != null ? a.feat.properties.index : a.fi;
+          const ib = b.feat.properties && b.feat.properties.index != null ? b.feat.properties.index : b.fi;
+          return ia - ib;
+        });
+
+      let html =
+        "<table class='routes'><thead><tr>" +
+        "<th></th><th>#</th><th>time (s)</th><th>safety</th><th>surv.</th><th>nodes</th>" +
+        "</tr></thead><tbody>";
+      rows.forEach(({ feat }) => {
+        const p = feat.properties || {};
+        const i = p.index != null ? p.index : 0;
+        const col = palette[i % palette.length];
+        html +=
+          "<tr data-index='" +
+          i +
+          "'>" +
+          "<td><input type='checkbox' class='vis' data-i='" +
+          i +
+          "' checked /></td>" +
+          "<td><span class='swatch' style='background:" +
+          col +
+          "'></span>" +
+          i +
+          "</td>" +
+          "<td>" +
+          (p.time_s != null ? Number(p.time_s).toFixed(1) : "—") +
+          "</td>" +
+          "<td>" +
+          (p.safety != null ? Number(p.safety).toFixed(2) : "—") +
+          "</td>" +
+          "<td>" +
+          (p.surveillance != null ? Number(p.surveillance).toFixed(2) : "—") +
+          "</td>" +
+          "<td>" +
+          escapeHtml(String(p.node_count ?? "—")) +
+          "</td></tr>";
+      });
+      html += "</tbody></table>";
+      tableMount.innerHTML = html;
+
+      tableMount.querySelectorAll("tr[data-index]").forEach((tr) => {
+        tr.addEventListener("click", (ev) => {
+          if (ev.target.classList.contains("vis")) return;
+          const idx = parseInt(tr.dataset.index, 10);
+          focusRouteByIndex(idx);
+        });
+      });
+      tableMount.querySelectorAll("input.vis").forEach((cb) => {
+        cb.addEventListener("change", () => {
+          const i = parseInt(cb.getAttribute("data-i"), 10);
+          const e = routeEntries.find((x) => x.index === i);
+          if (e) {
+            if (cb.checked) routeGroup.addLayer(e.layer);
+            else routeGroup.removeLayer(e.layer);
+          }
+        });
+      });
+    }
+
+    function buildHighlights(features) {
+      highlightsList.innerHTML = "";
+      const rows = features.map((feat, fi) => {
+        const p = feat.properties || {};
+        const i = p.index != null ? p.index : fi;
+        const t = Number(p.time_s) || 0;
+        const s = Number(p.safety) || 0;
+        const c = Number(p.surveillance) || 0;
+        return { i, t, s, c, sum: t + s + c };
+      });
+
+      function minBy(pred) {
+        let best = rows[0];
+        for (let k = 1; k < rows.length; k++) {
+          if (pred(rows[k]) < pred(best)) best = rows[k];
+        }
+        return best;
+      }
+
+      const fastest = minBy((r) => r.t);
+      const lowSafe = minBy((r) => r.s);
+      const lowSurv = minBy((r) => r.c);
+      const lowSum = minBy((r) => r.sum);
+
+      const items = [
+        { label: "Fastest (min time)", r: fastest, detail: "time = " + fastest.t.toFixed(1) + " s" },
+        { label: "Lowest safety cost", r: lowSafe, detail: "safety = " + lowSafe.s.toFixed(3) },
+        { label: "Lowest surveillance", r: lowSurv, detail: "surv. = " + lowSurv.c.toFixed(3) },
+        { label: "Lowest T+S+C (search heap key)", r: lowSum, detail: "sum = " + lowSum.sum.toFixed(1) },
+      ];
+
+      items.forEach(({ label, r, detail }) => {
+        const col = palette[r.i % palette.length];
+        const li = document.createElement("li");
+        const sw = "<span class='swatch' style='background:" + col + "'></span>";
+        li.innerHTML =
+          "<span class='hi-label'>" +
+          escapeHtml(label) +
+          "</span>" +
+          sw +
+          "<strong>Route " +
+          r.i +
+          "</strong> <span class='hi-val'>" +
+          escapeHtml(detail) +
+          "</span>";
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Focus";
+        btn.addEventListener("click", () => focusRouteByIndex(r.i));
+        li.appendChild(btn);
+        highlightsList.appendChild(li);
+      });
+    }
+
+    function loadGeoJSON(obj) {
+      routeGroup.clearLayers();
+      routeEntries = [];
+      const features = (obj.features || []).filter((f) => f.geometry);
+      if (!features.length) {
+        statusEl.textContent = "No line features in file.";
+        tableMount.innerHTML = "";
+        scatterSvg.innerHTML = "";
+        highlightsList.innerHTML = "";
+        return;
+      }
+
+      features.forEach((feat, fi) => {
+        const p = feat.properties || {};
+        const i = p.index != null ? p.index : fi;
+        const col = palette[i % palette.length];
+        const lyr = L.geoJSON(feat, {
+          style: {
+            color: col,
+            weight: 4,
+            opacity: 0.9,
+            lineJoin: "round",
+            lineCap: "round",
+          },
+          onEachFeature(f, layer) {
+            const lines = [
+              "<strong>Route " + i + "</strong>",
+              "time_s: " + (p.time_s != null ? Number(p.time_s).toFixed(1) : "—"),
+              "safety: " + (p.safety != null ? Number(p.safety).toFixed(3) : "—"),
+              "surveillance: " + (p.surveillance != null ? Number(p.surveillance).toFixed(3) : "—"),
+            ];
+            layer.bindPopup(lines.join("<br/>"));
+            layer.on("click", () => focusRouteByIndex(i));
+          },
+        });
+        lyr.eachLayer((layer) => {
+          routeGroup.addLayer(layer);
+          routeEntries.push({ layer, index: i, color: col, time: Number(p.time_s) || 0, surv: Number(p.surveillance) || 0, feat });
+        });
+      });
+
+      const b = routeGroup.getBounds();
+      if (b.isValid()) map.fitBounds(b.pad(0.1));
+
+      buildScatter(features);
+      buildHighlights(features);
+      buildTable(features);
+      setHighlight(-1);
+
+      statusEl.textContent =
+        "Loaded " +
+        features.length +
+        " route(s). See “Highlighted picks” for extremal routes; click map, table row, or dot.";
+    }
+
+    document.getElementById("file").addEventListener("change", (ev) => {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          loadGeoJSON(JSON.parse(reader.result));
+        } catch (e) {
+          statusEl.textContent = "Error: " + e.message;
+        }
+      };
+      reader.readAsText(f, "utf-8");
+    });
+
+    if (location.protocol === "http:" || location.protocol === "https:") {
+      fetch("routes.geojson", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && data.type === "FeatureCollection" && data.features && data.features.length) {
+            loadGeoJSON(data);
+            statusEl.textContent += " (routes.geojson)";
+          }
+        })
+        .catch(() => {});
+    }
+  </script>
+</body>
+</html>

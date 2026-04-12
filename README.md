@@ -31,6 +31,8 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 **Map viewer:** open `viewer/index.html` in a browser and use **Choose file** to load `routes.geojson`, or from the repo root run `python3 -m http.server 8765` and visit `http://127.0.0.1:8765/viewer/` (auto-loads `viewer/routes.geojson` if you copy the file there).
 
+**Visual demo (map + Pareto scatter + route table):** `http://127.0.0.1:8765/viewer/demo.html` — load the same GeoJSON; linked highlighting between map, chart, and table.
+
 **Point layer → edge CSV (e.g. CCTV as surveillance):** use the **same bbox** as routing. Put points in a CSV with `lat` and `lon` columns, then:
 
 ```bash

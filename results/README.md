@@ -125,6 +125,8 @@ Writes one feature per route (colored in the viewer).
 3. In a browser: `http://127.0.0.1:8765/viewer/`  
    The map should load **`routes.geojson`** automatically and fit bounds.
 
+**Visual demo (trade-off scatter + linked table + map):** open `http://127.0.0.1:8765/viewer/demo.html` and load the same file (or rely on auto-load of `viewer/routes.geojson`).
+
 **Option B — `file://` + Choose file**
 
 Open `viewer/index.html` directly from disk and use **Choose file** to pick `results/bengaluru_routes_12.geojson` (tiles still load from the network).
