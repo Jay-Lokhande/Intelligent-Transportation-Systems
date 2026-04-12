@@ -31,6 +31,46 @@ Equivalent manual command:
 
 **What to capture for slides/report:** the printed **`pareto_total_routes=…`** line, the **baseline** row, and the first **12** Pareto rows (time, safety, surveillance, hops).
 
+### Kharagpur (lat/lon snap — no OSM node IDs needed)
+
+Same workflow as Bengaluru, but endpoints are **snapped** from coordinates inside the bbox:
+
+- **BBox** (degrees): west **87.21**, south **22.30**, east **87.34**, north **22.36** (covers railway ↔ IIT corridor).
+- **Origin** (~station area): **22.3395**, **87.2255**
+- **Destination** (~IIT area): **22.3145**, **87.2950**
+
+**Log + table:**
+
+```bash
+bash scripts/reproduce_kharagpur.sh results/kharagpur_reproduction.txt
+```
+
+**GeoJSON (first 12 routes) + baseline print:**
+
+```bash
+.venv/bin/its-route osm \
+  --west 87.21 --south 22.30 --east 87.34 --north 22.36 \
+  --orig-lat 22.3395 --orig-lon 87.2255 \
+  --dest-lat 22.3145 --dest-lon 87.2950 \
+  --show-baseline --limit 12 \
+  --geojson results/kharagpur_routes_12.geojson
+```
+
+**All Pareto routes:**
+
+```bash
+.venv/bin/its-route osm \
+  --west 87.21 --south 22.30 --east 87.34 --north 22.36 \
+  --orig-lat 22.3395 --orig-lon 87.2255 \
+  --dest-lat 22.3145 --dest-lon 87.2950 \
+  --show-baseline \
+  --geojson-all results/kharagpur_routes_all.geojson
+```
+
+The CLI prints **`origin node=…` `destination node=…` (snapped from lat/lon)**. For **bit-for-bit** reproducibility later (like Bengaluru), copy those integers into **`--orig-node` / `--dest-node`** and keep the **same bbox**.
+
+**Viewer:** copy the GeoJSON you want to show to `viewer/routes.geojson`, or use **Choose file** — default map center is Bengaluru; after loading, the map **zooms to your routes** (Kharagpur will still look correct).
+
 **Quick sanity check (no network — toy graph):**
 
 ```bash
@@ -115,5 +155,7 @@ May **approximate** the Pareto set; use only if the run is too slow or runs out 
 |------|----------------|
 | `bengaluru_reproduction.txt` | `reproduce_bengaluru.sh` or `tee` pipeline in §2 |
 | `bengaluru_routes_12.geojson` | `--geojson` command in §3 |
+| `kharagpur_reproduction.txt` | `reproduce_kharagpur.sh` |
+| `kharagpur_routes_12.geojson` / `kharagpur_routes_all.geojson` | Kharagpur commands above |
 
 OSM data changes over time; rerun the commands and refresh numbers before final submission.
