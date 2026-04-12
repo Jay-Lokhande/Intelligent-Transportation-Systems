@@ -13,6 +13,9 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 .venv/bin/its-route osm --west -74.02 --south 40.72 --east -73.95 --north 40.78 \
   --orig-lat 40.75 --orig-lon -74.00 --dest-lat 40.76 --dest-lon -73.98 \
   --geojson routes.geojson --show-baseline
+# Pin exact OSM endpoints (must be inside the bbox graph); prints `pareto_total_routes=…`:
+.venv/bin/its-route osm --west 77.61 --south 12.93 --east 77.67 --north 12.98 \
+  --orig-node 448306395 --dest-node 309592695 --show-baseline --limit 12
 # Large areas: optional caps (approximate Pareto if triggered):
 #   --max-labels-per-node 30 --max-heap-pops 500000
 # Same bbox; optional edge template / CSV overrides:

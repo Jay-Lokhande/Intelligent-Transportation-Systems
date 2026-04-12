@@ -29,7 +29,7 @@ Multi-Objective Route Planning for ITS (Pareto-optimal paths)
 ## Slide 3 — Problem statement
 
 Given:
-- Road network as a directed graph \(G=(V,E)\)
+- Road network as a **directed multigraph** \(G=(V,E)\) (OSM can have parallel edges)
 - Edge costs \((t_e, s_e, c_e)\): travel time, safety cost, surveillance cost
 
 Goal:
@@ -57,12 +57,12 @@ Goal:
 
 ## Slide 6 — Method (algorithm overview)
 
-We implement **multi-objective label-setting search**:
+We implement **multi-objective label-setting (Pareto) search** — as in the report:
 - Each node stores a set of **nondominated labels** (cost vectors)
-- When expanding, new labels that are dominated are **pruned**
-- Pareto labels at the destination give the **Pareto-optimal routes**
+- A min-heap orders exploration by **sum** of the three costs (scalar key)
+- Dominated labels are **pruned**; labels at the destination yield **Pareto-optimal** routes
 
-(Optional note if asked: this is a multi-criteria Dijkstra/label-setting style search; A* heuristics are a future extension.)
+**Note:** This is **not** MO-A\* (no separate admissible heuristic \(h\)); that remains optional future work.
 
 ---
 
@@ -102,39 +102,58 @@ Tooling:
 
 ## Slide 10 — System demo plan (live)
 
-1. Run OSM routing for a small bbox:
-   - Returns **Pareto routes** + baseline time-only route
-2. Export routes to **GeoJSON**
-3. Visualize in `viewer/index.html` (Leaflet)
+1. **Toy:** `its-route toy` — two Pareto paths on a 4-node graph (sanity check).
+2. **Real network:** OSM bbox (e.g. **Bengaluru** Indiranagar→Koramangala corridor or a small NYC bbox).
+   - CLI prints **`pareto_total_routes=…`**, baseline (min-time Dijkstra), and up to `--limit` rows.
+3. Export **GeoJSON** (`--geojson` for first *N* routes, `--geojson-all` for the full Pareto set).
+4. Open **`viewer/index.html`** (Leaflet) — load the GeoJSON file.
 
 ---
 
 ## Slide 11 — Demo commands (copy/paste)
 
+**Reproducible Bengaluru run** (explicit OSM nodes — must lie inside bbox):
+
+```bash
+cd /path/to/repo
+.venv/bin/its-route osm --west 77.61 --south 12.93 --east 77.67 --north 12.98 \
+  --orig-node 448306395 --dest-node 309592695 \
+  --show-baseline --limit 12 \
+  --geojson results/bengaluru_routes_12.geojson
+# Or: bash scripts/reproduce_bengaluru.sh
+```
+
+**Snap from lat/lon** (any city):
+
 ```bash
 .venv/bin/its-route osm --west -74.01 --south 40.748 --east -73.995 --north 40.758 \
   --orig-lat 40.7527 --orig-lon -74.0060 --dest-lat 40.7545 --dest-lon -74.0015 \
   --show-baseline --geojson routes.geojson
-
-python3 -m http.server 8765
 ```
 
-Open: `http://127.0.0.1:8765/viewer/` and load `routes.geojson`.
+**Map viewer:**
+
+```bash
+.venv/bin/python -m http.server 8765
+```
+
+Open `http://127.0.0.1:8765/viewer/` and load your `.geojson` (or copy it to `viewer/routes.geojson` for auto-load over HTTP).
 
 ---
 
 ## Slide 12 — Results (what to show)
 
 Suggested visuals:
-- Map screenshot with 2–5 Pareto routes (different colors)
-- Table of routes:
-  - time_s, safety, surveillance, hops
-- Short comparison:
-  - baseline min-time route vs a safer/lower-surveillance Pareto alternative
+- **Map:** screenshot from `viewer/index.html` loading `results/bengaluru_routes_12.geojson` (or your run’s file)
+- **Table:** first 12 Pareto rows + baseline — columns: time (s), safety, surveillance, hops
+- **Story:** baseline is fastest but often **highest surveillance**; accepting ~30–45 s more time can **lower surveillance** via quieter links
 
-Fill in:
-- Example Pareto route count: [N]
-- Runtime for bbox: [seconds]
+**Logged example (repo, 2026-04-12 — OSM can drift):**
+- **`pareto_total_routes=75`** (report your own `pareto_total_routes=…` from the CLI)
+- **Baseline (min time):** ~**530.7 s**, safety **84.817**, surveillance **127.225**, **34** hops
+- Full console log: `results/bengaluru_reproduction.txt`
+
+Update slide numbers if your rerun differs; cite **run date** and “OSM snapshot.”
 
 ---
 
@@ -148,7 +167,7 @@ Fill in:
 
 ## Slide 14 — Future work
 
-- True **Multi-Objective A\*** heuristics (admissible lower bounds)
+- **Multi-Objective A\*** with admissible vector heuristics (extension beyond current label-setting)
 - More realistic safety models:
   - crime incidents, crash data, time-of-day variation
 - Better surveillance exposure:
