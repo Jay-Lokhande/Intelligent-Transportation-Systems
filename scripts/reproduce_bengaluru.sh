@@ -6,6 +6,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 mkdir -p results
 OUT="${1:-results/bengaluru_reproduction.txt}"
+echo "Bengaluru OSM run: downloading/building graph (Overpass). First run often takes several minutes; output streams once routing starts."
+export PYTHONUNBUFFERED=1
 "$ROOT/.venv/bin/its-route" osm \
   --west 77.61 --south 12.93 --east 77.67 --north 12.98 \
   --orig-node 448306395 --dest-node 309592695 \

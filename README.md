@@ -27,6 +27,8 @@ python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
   --edge-costs my_edges.csv --geojson routes.geojson
 ```
 
+**Reproduce console logs, GeoJSON, and map screenshots:** see [`results/README.md`](results/README.md) (Bengaluru one-liners, `tee`, `--geojson-all`, HTTP server, screenshot tips).
+
 **Map viewer:** open `viewer/index.html` in a browser and use **Choose file** to load `routes.geojson`, or from the repo root run `python3 -m http.server 8765` and visit `http://127.0.0.1:8765/viewer/` (auto-loads `viewer/routes.geojson` if you copy the file there).
 
 **Point layer → edge CSV (e.g. CCTV as surveillance):** use the **same bbox** as routing. Put points in a CSV with `lat` and `lon` columns, then:

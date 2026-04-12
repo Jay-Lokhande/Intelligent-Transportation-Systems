@@ -177,6 +177,8 @@ Open `http://127.0.0.1:8765/viewer/` and load your `.geojson` (or copy it to `vi
 
 ## Slide 15 — Results (what to show)
 
+**Commands** (log + GeoJSON + viewer + screenshot workflow): **`results/README.md`**
+
 Suggested visuals:
 - **Map:** screenshot from `viewer/index.html` loading `results/bengaluru_routes_12.geojson` (or your run’s file)
 - **Table:** first 12 Pareto rows + baseline — columns: time (s), safety, surveillance, hops
