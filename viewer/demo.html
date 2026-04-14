@@ -42,6 +42,36 @@
     header input[type="file"] { max-width: 14rem; font-size: 0.75rem; }
     #status { font-size: 0.8rem; color: var(--muted); font-family: "IBM Plex Mono", monospace; }
 
+    .map-nav {
+      width: 100%;
+      flex-basis: 100%;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem;
+      padding-top: 0.35rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+    }
+    .map-nav-title { color: var(--muted); margin-right: 0.25rem; }
+    .map-nav label { display: inline-flex; align-items: center; gap: 0.25rem; }
+    .map-nav input[type="number"] {
+      width: 6.5rem; font-family: "IBM Plex Mono", monospace; font-size: 0.75rem;
+      padding: 0.2rem 0.35rem; background: #0f1115; border: 1px solid var(--border);
+      border-radius: 4px; color: var(--text);
+    }
+    .map-nav input#nav-zoom { width: 3.25rem; }
+    .map-nav #nav-apply {
+      font-size: 0.75rem; padding: 0.25rem 0.55rem; cursor: pointer;
+      background: #252a35; border: 1px solid var(--border); border-radius: 4px; color: var(--text);
+      font-family: inherit;
+    }
+    .map-nav #nav-apply:hover { border-color: var(--accent); }
+    .map-nav-presets { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; }
+    .map-nav-presets button {
+      font-size: 0.72rem; padding: 0.2rem 0.45rem; cursor: pointer;
+      background: #1e2430; border: 1px solid var(--border); border-radius: 4px; color: var(--muted);
+      font-family: inherit;
+    }
+    .map-nav-presets button:hover { color: var(--text); border-color: #4a5568; }
+
     .main {
       flex: 1;
       display: grid;
@@ -180,6 +210,19 @@
       or place <code>routes.geojson</code> here and open via <code>http://</code>. Map + table + scatter stay linked.
     </span>
     <span id="status"></span>
+    <div class="map-nav" id="map-nav">
+      <span class="map-nav-title">Map start (before routes load)</span>
+      <label>lat <input id="nav-lat" type="number" step="any" /></label>
+      <label>lon <input id="nav-lon" type="number" step="any" /></label>
+      <label>zoom <input id="nav-zoom" type="number" min="1" max="19" step="1" /></label>
+      <button type="button" id="nav-apply">Apply view</button>
+      <span class="map-nav-presets">
+        <button type="button" data-lat="12.955" data-lon="77.64" data-zoom="12">Bengaluru</button>
+        <button type="button" data-lat="22.33" data-lon="87.31" data-zoom="12">Kharagpur</button>
+        <button type="button" data-lat="40.75" data-lon="-74.0" data-zoom="13">NYC</button>
+      </span>
+      <span class="hi-note" style="margin:0;font-size:0.68rem;">Also: URL <code>?lat=&amp;lon=&amp;zoom=</code> · saved in this browser</span>
+    </div>
   </header>
 
   <div class="main">
@@ -207,10 +250,12 @@
     </aside>
   </div>
 
+  <script src="nav-options.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
     const palette = ["#3b82f6", "#22c55e", "#ef4444", "#eab308", "#a855f7", "#0891b2", "#ec4899"];
-    const map = L.map("map", { zoomControl: true }).setView([12.955, 77.64], 12);
+    const _start = typeof itsViewerGetMapStart === "function" ? itsViewerGetMapStart() : { lat: 12.955, lon: 77.64, zoom: 12 };
+    const map = L.map("map", { zoomControl: true }).setView([_start.lat, _start.lon], _start.zoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap",
@@ -529,6 +574,54 @@
         })
         .catch(() => {});
     }
+
+    (function initMapNavForm() {
+      const latEl = document.getElementById("nav-lat");
+      const lonEl = document.getElementById("nav-lon");
+      const zoomEl = document.getElementById("nav-zoom");
+      const applyBtn = document.getElementById("nav-apply");
+      if (!latEl || !lonEl || !zoomEl || !applyBtn) return;
+
+      const s = typeof itsViewerGetMapStart === "function" ? itsViewerGetMapStart() : { lat: 12.955, lon: 77.64, zoom: 12 };
+      latEl.value = s.lat;
+      lonEl.value = s.lon;
+      zoomEl.value = s.zoom;
+
+      function applyFromInputs() {
+        const lat = parseFloat(latEl.value);
+        const lon = parseFloat(lonEl.value);
+        let zoom = parseInt(zoomEl.value, 10);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+          statusEl.textContent = "Enter valid lat and lon.";
+          return;
+        }
+        if (!Number.isFinite(zoom)) zoom = s.zoom;
+        zoom = Math.max(1, Math.min(19, zoom));
+        zoomEl.value = zoom;
+        map.setView([lat, lon], zoom);
+        if (typeof itsViewerSaveMapStart === "function") itsViewerSaveMapStart(lat, lon, zoom);
+        if (typeof itsViewerApplyQueryToUrl === "function") itsViewerApplyQueryToUrl(lat, lon, zoom);
+      }
+
+      applyBtn.addEventListener("click", applyFromInputs);
+      document.querySelectorAll(".map-nav-presets button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          latEl.value = btn.dataset.lat;
+          lonEl.value = btn.dataset.lon;
+          zoomEl.value = btn.dataset.zoom || "12";
+          applyFromInputs();
+        });
+      });
+
+      map.on("moveend", () => {
+        if (document.activeElement === latEl || document.activeElement === lonEl || document.activeElement === zoomEl) return;
+        const c = map.getCenter();
+        const z = map.getZoom();
+        latEl.value = c.lat.toFixed(6);
+        lonEl.value = c.lng.toFixed(6);
+        zoomEl.value = String(z);
+      });
+    })();
   </script>
 </body>
 </html>

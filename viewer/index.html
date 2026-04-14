@@ -8,6 +8,7 @@
   <style>
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
+    body { display: flex; flex-direction: column; height: 100%; }
     #toolbar {
       display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center;
       padding: 0.5rem 0.75rem; background: #1a1d23; color: #e8eaef;
@@ -16,7 +17,24 @@
     #toolbar label { cursor: pointer; font-size: 0.9rem; }
     #toolbar input[type="file"] { max-width: 14rem; font-size: 0.8rem; }
     #status { font-size: 0.85rem; opacity: 0.85; }
-    #map { height: calc(100% - 48px); width: 100%; }
+    .map-nav {
+      width: 100%; flex-basis: 100%;
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.65rem;
+      padding-top: 0.35rem; border-top: 1px solid #2d3340; font-size: 0.8rem;
+    }
+    .map-nav-title { color: #8b93a7; }
+    .map-nav label { display: inline-flex; align-items: center; gap: 0.25rem; }
+    .map-nav input[type="number"] {
+      width: 6.5rem; font-size: 0.75rem; padding: 0.15rem 0.3rem;
+      background: #0f1115; border: 1px solid #2d3340; border-radius: 4px; color: #e8eaef;
+    }
+    .map-nav input#nav-zoom { width: 3rem; }
+    .map-nav #nav-apply, .map-nav-presets button {
+      font-size: 0.75rem; padding: 0.2rem 0.45rem; cursor: pointer;
+      background: #252a35; border: 1px solid #2d3340; border-radius: 4px; color: #e8eaef;
+    }
+    .map-nav-presets { display: inline-flex; gap: 0.3rem; flex-wrap: wrap; }
+    #map { flex: 1; min-height: 200px; width: 100%; }
     .leaflet-popup-content { font-size: 0.85rem; min-width: 10rem; }
   </style>
 </head>
@@ -24,14 +42,27 @@
   <div id="toolbar">
     <label>GeoJSON <input id="file" type="file" accept=".geojson,.json,application/geo+json" /></label>
     <span id="status">No routes yet — run <code>its-route … --geojson …</code>, then put <code>routes.geojson</code> in this folder and open via <code>http://</code>, or use <strong>Choose file</strong> below.</span>
+    <div class="map-nav">
+      <span class="map-nav-title">Map start</span>
+      <label>lat <input id="nav-lat" type="number" step="any" /></label>
+      <label>lon <input id="nav-lon" type="number" step="any" /></label>
+      <label>zoom <input id="nav-zoom" type="number" min="1" max="19" step="1" /></label>
+      <button type="button" id="nav-apply">Apply</button>
+      <span class="map-nav-presets">
+        <button type="button" data-lat="12.955" data-lon="77.64" data-zoom="12">Bengaluru</button>
+        <button type="button" data-lat="22.33" data-lon="87.31" data-zoom="12">Kharagpur</button>
+      </span>
+      <span style="font-size:0.72rem;opacity:0.75;">URL <code>?lat=&amp;lon=&amp;zoom=</code></span>
+    </div>
   </div>
   <div id="map" role="application" aria-label="Map"></div>
 
+  <script src="nav-options.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
     const palette = ["#2563eb", "#16a34a", "#dc2626", "#ca8a04", "#9333ea", "#0891b2", "#db2777"];
-    // Default view before GeoJSON: Bengaluru-ish (report bbox), not NYC — fitBounds runs once routes load.
-    const map = L.map("map", { zoomControl: true }).setView([12.955, 77.64], 12);
+    const _start = typeof itsViewerGetMapStart === "function" ? itsViewerGetMapStart() : { lat: 12.955, lon: 77.64, zoom: 12 };
+    const map = L.map("map", { zoomControl: true }).setView([_start.lat, _start.lon], _start.zoom);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap",
@@ -102,6 +133,49 @@
         })
         .catch(() => {});
     }
+
+    (function initMapNavForm() {
+      const latEl = document.getElementById("nav-lat");
+      const lonEl = document.getElementById("nav-lon");
+      const zoomEl = document.getElementById("nav-zoom");
+      const applyBtn = document.getElementById("nav-apply");
+      if (!latEl || !lonEl || !zoomEl || !applyBtn) return;
+      const s = typeof itsViewerGetMapStart === "function" ? itsViewerGetMapStart() : { lat: 12.955, lon: 77.64, zoom: 12 };
+      latEl.value = s.lat;
+      lonEl.value = s.lon;
+      zoomEl.value = s.zoom;
+
+      function applyFromInputs() {
+        const lat = parseFloat(latEl.value);
+        const lon = parseFloat(lonEl.value);
+        let zoom = parseInt(zoomEl.value, 10);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        if (!Number.isFinite(zoom)) zoom = s.zoom;
+        zoom = Math.max(1, Math.min(19, zoom));
+        zoomEl.value = zoom;
+        map.setView([lat, lon], zoom);
+        if (typeof itsViewerSaveMapStart === "function") itsViewerSaveMapStart(lat, lon, zoom);
+        if (typeof itsViewerApplyQueryToUrl === "function") itsViewerApplyQueryToUrl(lat, lon, zoom);
+      }
+
+      applyBtn.addEventListener("click", applyFromInputs);
+      document.querySelectorAll(".map-nav-presets button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          latEl.value = btn.dataset.lat;
+          lonEl.value = btn.dataset.lon;
+          zoomEl.value = btn.dataset.zoom || "12";
+          applyFromInputs();
+        });
+      });
+
+      map.on("moveend", () => {
+        if (document.activeElement === latEl || document.activeElement === lonEl || document.activeElement === zoomEl) return;
+        const c = map.getCenter();
+        latEl.value = c.lat.toFixed(6);
+        lonEl.value = c.lng.toFixed(6);
+        zoomEl.value = String(map.getZoom());
+      });
+    })();
   </script>
 </body>
 </html>

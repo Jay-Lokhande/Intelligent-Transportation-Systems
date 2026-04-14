@@ -127,6 +127,8 @@ Writes one feature per route (colored in the viewer).
 
 **Visual demo (trade-off scatter + linked table + map):** open `http://127.0.0.1:8765/viewer/demo.html` and load the same file (or rely on auto-load of `viewer/routes.geojson`).
 
+**Map start position:** in `viewer/index.html` and `viewer/demo.html`, set **lat / lon / zoom** in the toolbar and click **Apply**, use quick presets (Bengaluru, Kharagpur, …), or open with query parameters, e.g. `demo.html?lat=22.33&lon=87.31&zoom=12`. The choice is saved in the browser (`localStorage`) for next visit.
+
 **Option B — `file://` + Choose file**
 
 Open `viewer/index.html` directly from disk and use **Choose file** to pick `results/bengaluru_routes_12.geojson` (tiles still load from the network).
